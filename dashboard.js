@@ -1,4 +1,4 @@
-const top10Coins = [
+=const top10Coins = [
   {name: "Bitcoin", symbol: "BTC", id: "bitcoin"}, {name: "Ethereum", symbol: "ETH", id: "ethereum"},
   {name: "BNB", symbol: "BNB", id: "binancecoin"}, {name: "Solana", symbol: "SOL", id: "solana"},
   {name: "XRP", symbol: "XRP", id: "ripple"}, {name: "Dogecoin", symbol: "DOGE", id: "dogecoin"},
@@ -9,6 +9,7 @@ const top10Coins = [
 let currentCoin = "bitcoin";
 let currentCurrency = "usd";
 let currentTimeframe = "1d";
+let priceTimeframe = "24h";
 let countdown = 60;
 let countdownInterval;
 
@@ -30,7 +31,18 @@ function renderDashboard() {
       <div style="text-align:center;">
         <div style="color:#94a3b8; font-size:14px; margin-bottom:5px;" id="pairTitle">BTC/USDT</div>
         <div class="price" id="livePrice">Loading...</div>
-        <div class="change" id="change24h">--</div>
+
+        <div style="display:flex; justify-content:center; align-items:center; gap:10px; margin:10px 0;">
+          <div class="change" id="changePrice">--</div>
+          <select id="priceTimeframeSelect" style="padding:4px 8px; background:#1e293b; color:white; border:1px solid #334155; border-radius:6px; font-size:12px;">
+            <option value="15m">15m</option>
+            <option value="1h">1h</option>
+            <option value="4h">4h</option>
+            <option value="24h" selected>24h</option>
+            <option value="7d">7d</option>
+          </select>
+        </div>
+
         <div style="margin:15px 0;"><span id="cooldownTimer" style="background:#f59e0b; padding:4px 12px; border-radius:6px; font-size:12px; color:white;">Next update in 60s</span></div>
         <div style="font-size:11px; color:#64748b;" id="lastUpdate">Last Update: --</div>
       </div>
@@ -40,7 +52,7 @@ function renderDashboard() {
       </div>
     </div>
 
-    <!-- 2. ADVANCED SENTIMENT CARD -->
+    <!-- 2. MARKET ANALYSIS CARD -->
     <div class="card" style="margin-top:15px;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
         <div style="font-size:16px; font-weight:700;">Market Analysis</div>
@@ -52,22 +64,26 @@ function renderDashboard() {
         </select>
       </div>
 
+      <!-- NAYA: MARKET MOOD -->
+      <div style="background:linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding:15px; border-radius:10px; margin-bottom:12px; text-align:center; border:1px solid #334155;">
+        <div style="color:#94a3b8; font-size:11px; margin-bottom:5px;">MARKET MOOD</div>
+        <div style="font-size:22px; font-weight:800;" id="marketMood">--</div>
+        <div style="font-size:11px; color:#94a3b8;" id="marketMoodDesc">Analyzing...</div>
+      </div>
+
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-        <!-- Fear & Greed -->
         <div style="background:#1e293b; padding:12px; border-radius:8px;">
           <div style="color:#94a3b8; font-size:11px;">Fear & Greed</div>
           <div style="font-size:20px; font-weight:800;" id="sentimentScore">--</div>
-          <div style="font-size:10px;" id="sentimentLabel">--</div>
+          <div style="font-size:10px;" id="sentimentLabel">Loading...</div>
         </div>
-        <!-- RSI -->
         <div style="background:#1e293b; padding:12px; border-radius:8px;">
           <div style="color:#94a3b8; font-size:11px;">RSI <span id="rsiTime">1D</span></div>
           <div style="font-size:20px; font-weight:800;" id="rsiValue">--</div>
           <div style="font-size:10px;" id="rsiLabel">--</div>
         </div>
-        <!-- Market Cap Change - NAYA -->
         <div style="background:#1e293b; padding:12px; border-radius:8px; grid-column: span 2;">
-          <div style="color:#94a3b8; font-size:11px;">Total Market Cap Change <span id="mcapTime">24H</span></div>
+          <div style="color:#94a3b8; font-size:11px;">Market Cap Change <span id="mcapTime">24H</span></div>
           <div style="font-size:20px; font-weight:800;" id="marketCapChange">--%</div>
         </div>
       </div>
@@ -77,10 +93,12 @@ function renderDashboard() {
   document.getElementById('coinSelect').value = currentCoin;
   document.getElementById('currencySelect').value = currentCurrency;
   document.getElementById('timeframeSelect').value = currentTimeframe;
+  document.getElementById('priceTimeframeSelect').value = priceTimeframe;
 
   document.getElementById('coinSelect').onchange = (e) => {currentCoin = e.target.value; countdown = 60; fetchPrice(); fetchSentiment()};
   document.getElementById('currencySelect').onchange = (e) => {currentCurrency = e.target.value; countdown = 60; fetchPrice()};
   document.getElementById('timeframeSelect').onchange = (e) => {currentTimeframe = e.target.value; document.getElementById('rsiTime').innerText = e.target.value.toUpperCase(); document.getElementById('mcapTime').innerText = e.target.value.toUpperCase(); fetchSentiment()};
+  document.getElementById('priceTimeframeSelect').onchange = (e) => {priceTimeframe = e.target.value; fetchPrice()};
 
   fetchPrice();
   fetchSentiment();
@@ -109,56 +127,83 @@ async function fetchPrice() {
   document.getElementById('pairTitle').innerText = `${coin.symbol}/${currencyName}`;
   document.getElementById('livePrice').innerText = "Loading..."; countdown = 60;
   try {
-    const url = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=${currentCurrency}&ids=${currentCoin}&price_change_percentage=24h`;
+    const url = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=${currentCurrency}&ids=${currentCoin}&price_change_percentage=${priceTimeframe}`;
     const res = await fetch(url); const data = await res.json(); const coinData = data[0];
     document.getElementById('livePrice').innerText = `${symbol}${coinData.current_price.toLocaleString('en-IN')}`;
-    const change = coinData.price_change_percentage_24h.toFixed(2);
-    document.getElementById('change24h').innerText = `${change >= 0? '▲' : '▼'} ${Math.abs(change)}% (24h)`;
-    document.getElementById('change24h').style.color = change >= 0? '#10b981' : '#ef4444';
+
+    const changeKey = `price_change_percentage_${priceTimeframe}_in_currency`;
+    const change = coinData[changeKey].toFixed(2);
+    document.getElementById('changePrice').innerText = `${change >= 0? '▲' : '▼'} ${Math.abs(change)}%`;
+    document.getElementById('changePrice').style.color = change >= 0? '#10b981' : '#ef4444';
+
     document.getElementById('high24h').innerText = `${symbol}${coinData.high_24h.toLocaleString('en-IN')}`;
     document.getElementById('low24h').innerText = `${symbol}${coinData.low_24h.toLocaleString('en-IN')}`;
     document.getElementById('lastUpdate').innerText = `Last Update: ${new Date().toLocaleTimeString()}`;
   } catch (error) { document.getElementById('livePrice').innerText = "Error"; }
 }
 
-// ADVANCED SENTIMENT WITH TIMEFRAME
+// FIXED + MARKET MOOD ADDED
 async function fetchSentiment() {
   try {
-    // 1. Fear & Greed - same
+    // 1. FEAR & GREED FIX
     const fngRes = await fetch('https://api.alternative.me/fng/');
     const fngData = await fngRes.json();
-    const score = fngData.data[0].value;
-    document.getElementById('sentimentScore').innerText = score;
-    document.getElementById('sentimentLabel').innerText = fngData.data[0].value_class;
-    document.getElementById('sentimentLabel').style.color = score <= 50? '#ef4444' : '#10b981';
+    if(fngData.data && fngData.data[0]){
+      const score = fngData.data[0].value;
+      const label = fngData.data[0].value_class;
+      document.getElementById('sentimentScore').innerText = score;
+      document.getElementById('sentimentLabel').innerText = label;
+      document.getElementById('sentimentLabel').style.color = score <= 50? '#ef4444' : '#10b981';
+    }
 
-    // 2. RSI + Market Cap Change based on timeframe
     const coin = top10Coins.find(c => c.id === currentCoin);
-    let days = 1, interval = 'hourly';
-    if(currentTimeframe === "1h") { days = 1; interval = 'hourly'; }
-    if(currentTimeframe === "4h") { days = 1; interval = 'hourly'; }
-    if(currentTimeframe === "1d") { days = 14; interval = 'daily'; }
-    if(currentTimeframe === "7d") { days = 30; interval = 'daily'; }
+    let days = 14;
+    if(currentTimeframe === "1h") days = 1;
+    if(currentTimeframe === "4h") days = 1;
+    if(currentTimeframe === "7d") days = 30;
 
     const chartRes = await fetch(`https://api.coingecko.com/api/v3/coins/${coin.id}/market_chart?vs_currency=${currentCurrency}&days=${days}`);
     const chartData = await chartRes.json();
     const prices = chartData.prices.map(p => p[1]);
     const marketCaps = chartData.market_caps.map(p => p[1]);
 
-    // RSI Calculate
     const rsi = calculateRSI(prices);
     document.getElementById('rsiValue').innerText = rsi.toFixed(2);
     document.getElementById('rsiLabel').innerText = rsi < 30? "Oversold/Buy" : rsi > 70? "Overbought/Sell" : "Neutral";
     document.getElementById('rsiLabel').style.color = rsi < 30? '#10b981' : rsi > 70? '#ef4444' : '#94a3b8';
 
-    // Market Cap Change Calculate
-    let pointsToCheck = currentTimeframe === "1h"? 4 : currentTimeframe === "4h"? 4 : currentTimeframe === "1d"? 1 : 7;
-    const oldCap = marketCaps[marketCaps.length - pointsToCheck - 1][1];
-    const newCap = marketCaps[marketCaps.length - 1][1];
-    const mcapChange = ((newCap - oldCap) / oldCap) * 100;
-    document.getElementById('marketCapChange').innerText = `${mcapChange >= 0? '+' : ''}${mcapChange.toFixed(2)}%`;
-    document.getElementById('marketCapChange').style.color = mcapChange >= 0? '#10b981' : '#ef4444';
+    // 2. MARKET MOOD LOGIC - NAYA
+    const fngScore = parseInt(document.getElementById('sentimentScore').innerText);
+    let mood = "NEUTRAL";
+    let moodDesc = "Market is sideways";
+    let moodColor = "#94a3b8";
 
+    if(rsi > 60 && fngScore > 60){
+      mood = "BULLISH";
+      moodDesc = "Strong uptrend, Greed in market";
+      moodColor = "#10b981";
+    } else if(rsi < 40 && fngScore < 40){
+      mood = "BEARISH";
+      moodDesc = "Downtrend, Fear in market";
+      moodColor = "#ef4444";
+    } else if(rsi >= 40 && rsi <= 60){
+      mood = "SIDEWAYS";
+      moodDesc = "Consolidation phase";
+      moodColor = "#f59e0b";
+    }
+
+    document.getElementById('marketMood').innerText = mood;
+    document.getElementById('marketMood').style.color = moodColor;
+    document.getElementById('marketMoodDesc').innerText = moodDesc;
+
+    let pointsToCheck = currentTimeframe === "1h"? 4 : currentTimeframe === "4h"? 16 : currentTimeframe === "1d"? 1 : 7;
+    if(marketCaps.length > pointsToCheck){
+      const oldCap = marketCaps[marketCaps.length - pointsToCheck - 1];
+      const newCap = marketCaps[marketCaps.length - 1];
+      const mcapChange = ((newCap - oldCap) / oldCap) * 100;
+      document.getElementById('marketCapChange').innerText = `${mcapChange >= 0? '+' : ''}${mcapChange.toFixed(2)}%`;
+      document.getElementById('marketCapChange').style.color = mcapChange >= 0? '#10b981' : '#ef4444';
+    }
   } catch (error) { console.error("Sentiment error", error); }
 }
 
@@ -170,6 +215,7 @@ function calculateRSI(prices) {
   }
   const avgGain = gains / (prices.length-1);
   const avgLoss = losses / (prices.length-1);
+  if(avgLoss === 0) return 100;
   const rs = avgGain / avgLoss;
   return 100 - (100 / (1 + rs));
 }
