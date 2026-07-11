@@ -1,4 +1,4 @@
-=const top10Coins = [
+const top10Coins = [
   {name: "Bitcoin", symbol: "BTC", id: "bitcoin"}, {name: "Ethereum", symbol: "ETH", id: "ethereum"},
   {name: "BNB", symbol: "BNB", id: "binancecoin"}, {name: "Solana", symbol: "SOL", id: "solana"},
   {name: "XRP", symbol: "XRP", id: "ripple"}, {name: "Dogecoin", symbol: "DOGE", id: "dogecoin"},
